@@ -1,0 +1,11 @@
+# kubectl apply -k deploy/kubernetes
+# Edit ingress.yaml for your hostname (or delete it and use a port-forward).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: infocom
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml

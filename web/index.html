@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>Infocom Library</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#/">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><use href="/icon.svg#mark"/></svg>
+      <span>Infocom Library</span>
+    </a>
+    <div class="who" id="who" hidden>
+      <span id="who-name"></span>
+      <button type="button" class="link" id="btn-password">Password</button>
+      <button type="button" class="link" id="btn-logout">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sign in / create account -->
+    <section id="view-auth" class="view auth" hidden>
+      <div class="auth-card">
+        <h1>West of House</h1>
+        <p class="lede">You are standing in front of a library of interactive fiction. Sign in to pick up where you left off.</p>
+        <form id="auth-form" autocomplete="on">
+          <label>Username
+            <input name="username" autocomplete="username" required minlength="2" maxlength="32"
+                   pattern="[A-Za-z0-9_.\-]+" autocapitalize="none" spellcheck="false">
+          </label>
+          <label>Password
+            <input name="password" type="password" autocomplete="current-password" required minlength="8">
+          </label>
+          <p class="error" id="auth-error" role="alert"></p>
+          <div class="actions">
+            <button type="submit" class="primary" id="auth-submit">Sign in</button>
+            <button type="button" class="link" id="auth-toggle">Create an account</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- The library -->
+    <section id="view-library" class="view" hidden>
+      <div class="library-head">
+        <div>
+          <h1>The Library</h1>
+          <p class="lede" id="library-count"></p>
+        </div>
+        <input type="search" id="filter" placeholder="Filter by title, author or genre" aria-label="Filter games">
+      </div>
+      <div class="continue" id="continue" hidden>
+        <h2>Continue</h2>
+        <div class="grid" id="grid-continue"></div>
+      </div>
+      <h2 id="all-head" hidden>All stories</h2>
+      <div class="grid" id="grid"></div>
+      <p class="empty" id="empty" hidden>No story files found. Mount a directory of <code>.z3</code>/<code>.z5</code>/<code>.dat</code> files at <code>/games</code>.</p>
+    </section>
+
+    <!-- Playing -->
+    <section id="view-play" class="view play" hidden>
+      <div class="play-bar">
+        <a class="back" href="#/" aria-label="Back to the library">&larr;</a>
+        <div class="play-title">
+          <strong id="play-title"></strong>
+          <span class="status" id="status"><span id="status-left"></span><span id="status-right"></span></span>
+        </div>
+        <div class="tools">
+          <button type="button" id="btn-undo" title="Take back the last command">Undo</button>
+          <button type="button" id="btn-saves" title="Save or restore">Saves</button>
+          <button type="button" id="btn-restart" title="Start this story over">Restart</button>
+        </div>
+      </div>
+      <div class="screen" id="screen" aria-live="polite">
+        <div class="transcript" id="transcript"></div>
+        <div class="ended" id="ended" hidden>
+          <p>The story has ended.</p>
+          <button type="button" class="primary" id="ended-restart">Play again</button>
+          <button type="button" id="ended-restore">Restore a save</button>
+          <button type="button" id="ended-undo">Undo the last move</button>
+        </div>
+        <form class="input" id="input-form" autocomplete="off">
+          <label for="cmd" class="prompt" id="prompt">&gt;</label>
+          <input id="cmd" name="cmd" maxlength="200" autocapitalize="none" autocorrect="off" spellcheck="false"
+                 enterkeyhint="send" aria-label="Command">
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <dialog id="dlg-saves">
+    <form method="dialog" class="dlg">
+      <h2>Saved games</h2>
+      <p class="hint">Your progress is saved after every move. Saves are extra bookmarks you can return to.</p>
+      <div class="save-new">
+        <input id="save-name" maxlength="60" placeholder="Name (defaults to your location)">
+        <button type="button" class="primary" id="btn-save">Save here</button>
+      </div>
+      <p class="error" id="saves-error" role="alert"></p>
+      <ul class="saves" id="saves-list"></ul>
+      <div class="actions"><button value="close">Close</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-confirm">
+    <form method="dialog" class="dlg">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-text"></p>
+      <div class="actions">
+        <button value="cancel">Cancel</button>
+        <button value="ok" class="primary danger" id="confirm-ok"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-password">
+    <form method="dialog" class="dlg" id="password-form">
+      <h2>Change password</h2>
+      <input type="text" name="username" autocomplete="username" hidden>
+      <label>Current password <input type="password" name="current" autocomplete="current-password" required></label>
+      <label>New password <input type="password" name="new" autocomplete="new-password" required minlength="8"></label>
+      <p class="error" id="password-error" role="alert"></p>
+      <div class="actions">
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="ok" class="primary" id="password-ok">Change</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

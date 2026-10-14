@@ -1,0 +1,87 @@
+# One replica: the database is a SQLite file, so there must be exactly one
+# writer. Recreate (not RollingUpdate) so an upgrade never runs two at once.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: infocom
+  labels:
+    app: infocom
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: infocom
+  template:
+    metadata:
+      labels:
+        app: infocom
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: infocom
+          # Pin a sha- tag or digest for anything that must not change under you.
+          image: ghcr.io/alanheinen/infocom-web:latest
+          env:
+            # Your own story files go in games/ on the data volume (the
+            # server creates it); they appear on the next page load:
+            #   pod=$(kubectl -n infocom get pod -l app=infocom -o name | cut -d/ -f2)
+            #   kubectl -n infocom cp ./mygames/. "$pod":/data/games/
+            - name: GAMES_DIRS
+              value: /app/games:/data/games
+            # open | first | closed. With closed, add accounts with
+            #   kubectl -n infocom exec -it deploy/infocom -- python3 server/serve.py useradd NAME
+            - name: SIGNUP
+              value: open
+            # Behind an ingress: client IPs (login rate limit) and https
+            # (Secure cookie) come from X-Forwarded-* headers.
+            - name: TRUST_PROXY
+              value: "1"
+          ports:
+            - containerPort: 8080
+              name: http
+          # Idle ~20Mi. Each turn runs a short-lived dfrotz (~2Mi, well under a
+          # second); sign-ins briefly use 32Mi for password hashing.
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: "1"
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: infocom-data
+        # dfrotz's per-turn scratch directories (always empty in practice).
+        - name: tmp
+          emptyDir:
+            sizeLimit: 16Mi

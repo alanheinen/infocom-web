@@ -1,0 +1,37 @@
+# Infocom Library with Docker Compose:
+#
+#   docker compose up -d          then open http://localhost:8080
+#
+# Zork I-III are built in. Put any other story files you own (.z3, .z5, .dat
+# ...) in ./games next to this file; they show up on the next page load.
+#
+# Pulls the published image, or builds it from this checkout if it can't
+# (docker compose up -d --build always builds).
+services:
+  infocom:
+    image: ghcr.io/alanheinen/infocom-web:latest
+    build: .
+    restart: unless-stopped
+    environment:
+      # open: anyone who can reach the page can make an account.
+      # first: only the first account, then closed. closed: `useradd` only:
+      #   docker compose exec infocom python3 server/serve.py useradd NAME
+      SIGNUP: open
+    ports:
+      # This machine only. Use "8080:8080" to play from other devices on your
+      # network. To put it on the internet, put a TLS proxy in front, set
+      # SIGNUP to first or closed, and set TRUST_PROXY: "1".
+      - "127.0.0.1:8080:8080"
+    volumes:
+      # Accounts, autosaves and save slots (one SQLite file). Back this up.
+      - data:/data
+      - ./games:/games:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+
+volumes:
+  data:

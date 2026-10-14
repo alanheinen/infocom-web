@@ -1,0 +1,11 @@
+# Accounts, autosaves and save slots (infocom.db), plus your own story files
+# in games/. Small: a long game's autosave is a few kilobytes of commands.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: infocom-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi

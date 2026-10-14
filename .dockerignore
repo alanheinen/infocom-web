@@ -1,0 +1,8 @@
+.git
+.github
+data
+games
+**/__pycache__
+tests
+*.md
+!THIRD-PARTY.md

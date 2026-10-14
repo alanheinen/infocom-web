@@ -185,6 +185,59 @@ function setStatus(status) {
   $("#status-right").textContent = (right || "").replace(/\s{2,}/g, "  ").trim();
 }
 
+// --- map --------------------------------------------------------------------
+
+let autoMap = null;
+const mapPanel = $("#map-panel");
+const WIDE = matchMedia("(min-width: 1000px)");
+
+function mapWanted() {
+  try {
+    const v = localStorage.getItem("infocom.map");
+    if (v !== null) return v === "1";
+  } catch { /* storage unavailable */ }
+  return WIDE.matches;
+}
+
+function showMap(open, remember) {
+  mapPanel.hidden = !open;
+  $("#btn-map").setAttribute("aria-pressed", String(open));
+  $("#view-play").classList.toggle("with-map", open);
+  if (remember) {
+    try { localStorage.setItem("infocom.map", open ? "1" : "0"); } catch { /* fine */ }
+  }
+  if (open) {
+    autoMap ||= new AutoMap.View($("#map-canvas"));
+    renderMap();
+  } else if (!$("#input-form").hidden) {
+    cmdInput.focus({ preventScroll: true });
+  }
+}
+
+function renderMap() {
+  const m = state.map;
+  $("#map-empty").hidden = !!m;
+  $("#map-canvas").hidden = !m;
+  const here = m && m.rooms.find((r) => r.id === m.here);
+  $("#map-hint").textContent = m ? `${m.rooms.length} ${m.rooms.length === 1 ? "room" : "rooms"}` +
+    (here && here.name ? ` · ${here.name}` : "") : "";
+  if (m && autoMap && !mapPanel.hidden) autoMap.set(m);
+}
+
+function setMap(m) {
+  state.map = m || null;
+  renderMap();
+}
+
+$("#btn-map").addEventListener("click", () => showMap(mapPanel.hidden, true));
+$("#map-close").addEventListener("click", () => showMap(false, false));
+$("#map-in").addEventListener("click", () => autoMap && autoMap.zoomBy(1.25));
+$("#map-out").addEventListener("click", () => autoMap && autoMap.zoomBy(0.8));
+$("#map-center").addEventListener("click", () => autoMap && autoMap.center(true));
+mapPanel.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !WIDE.matches) showMap(false, false);
+});
+
 function applyView(v) {
   state.game = v.game;
   document.title = `${v.game.title} — Infocom Library`;
@@ -192,6 +245,7 @@ function applyView(v) {
   const nodes = v.turns.map(turnNode);
   if (v.hidden) nodes.unshift(el("div", "hidden-note", `(${v.hidden} earlier moves not shown)`));
   transcript.replaceChildren(...nodes);
+  setMap(v.map);
   setPlayState(v);
   screen.scrollTop = screen.scrollHeight;
 }
@@ -207,6 +261,8 @@ function setPlayState(v) {
 
 async function showGame(id) {
   show("view-play");
+  setMap(null);
+  showMap(mapWanted(), false);
   transcript.replaceChildren(el("div", "hidden-note", "Opening the story…"));
   $("#play-title").textContent = state.games.find((g) => g.id === id)?.title || "";
   setStatus("");
@@ -257,6 +313,7 @@ $("#input-form").addEventListener("submit", (e) => {
       cmdInput.value = "";
       const node = turnNode({ prompt, cmd: r.turn.cmd, text: r.turn.text });
       transcript.append(node);
+      setMap(r.map);
       setPlayState(r);
       scrollToTurn(node);
     } catch (err) {

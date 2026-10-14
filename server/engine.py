@@ -88,6 +88,29 @@ def run(story: Path, seed: int, commands: list[str]) -> Run:
     return Run(p.stdout.decode("latin-1"), ended)
 
 
+def snapshot(story: Path, seed: int, commands: list[str]) -> bytes | None:
+    """The game's memory after `commands`, as a Quetzal save, for the automap.
+
+    A separate replay that ends with the game's own SAVE, so the turn's real
+    output is never touched. Returns None when the game didn't save (it ended,
+    or was waiting for something other than a command).
+    """
+    feed = "".join(c + "\n" for c in commands + ["save", "map.qzl"]).encode("latin-1", "replace")
+    with tempfile.TemporaryDirectory(prefix="dfrotz-") as scratch:
+        try:
+            subprocess.run(
+                [DFROTZ, "-q", "-m", "-p", "-w", str(WIDTH), "-h", "999",
+                 "-s", str(seed), "-R", scratch, str(story)],
+                input=feed, capture_output=True, timeout=TIMEOUT, cwd=scratch,
+            )
+        except subprocess.TimeoutExpired:
+            return None
+        try:
+            return (Path(scratch) / "map.qzl").read_bytes()
+        except OSError:
+            return None
+
+
 def digest(text: str) -> str:
     return hashlib.sha256(text.encode("latin-1")).hexdigest()
 

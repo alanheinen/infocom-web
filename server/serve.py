@@ -34,6 +34,7 @@ import sys
 import threading
 import time
 from collections import defaultdict, deque
+from concurrent.futures import ThreadPoolExecutor
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -42,6 +43,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import engine  # noqa: E402
+import mapper  # noqa: E402
 from catalog import Library  # noqa: E402
 from store import Store  # noqa: E402
 
@@ -50,6 +52,7 @@ WEB = ROOT / "web"
 STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
           "/app.css": ("app.css", "text/css; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+          "/map.js": ("map.js", "text/javascript; charset=utf-8"),
           "/icon.svg": ("icon.svg", "image/svg+xml")}
 USERNAME = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
 MAX_BODY = 16 * 1024
@@ -57,6 +60,8 @@ MAX_TURNS = 20000
 MAX_SAVES = 100
 SHOWN_TURNS = 400       # turns of scrollback sent when a game is opened
 COOKIE = "infocom_session"
+# Runs each move's automap replay alongside the move itself.
+POOL = ThreadPoolExecutor(max_workers=4, thread_name_prefix="snapshot")
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; frame-ancestors 'none'; "
                                "base-uri 'none'; form-action 'self'",
@@ -121,6 +126,25 @@ class Games:
         return {"seed": seed, "commands": [], "marks": [len(r.output)], "digest": engine.digest(r.output),
                 "ended": r.ended, "_output": r.output}
 
+    def _locate(self, story: dict, g: dict, cmd: str | None = None, save: bytes | None = None) -> None:
+        """Update g["map"] with where the player is now. cmd is the move that
+        got them here (None for undo, restore or opening: no new passage)."""
+        if g.get("ended"):
+            return
+        if save is None:
+            save = engine.snapshot(story["path"], g["seed"], g["commands"])
+        try:
+            si = mapper.story_info(story["path"])
+            g["map"] = mapper.update(g.get("map"), si, save, g.get("status"), cmd, moved=cmd is not None)
+        except (IndexError, ValueError) as e:   # a story file we can't read: no map, still playable
+            print(f"automap: {story['file']}: {e!r}", flush=True)
+
+    def _map_view(self, story: dict, g: dict) -> dict | None:
+        try:
+            return mapper.view(g.get("map"), mapper.story_info(story["path"]))
+        except (IndexError, ValueError):
+            return None
+
     def _view(self, story: dict, g: dict, output: str) -> dict:
         segs = engine.segments(output, g["marks"], g["commands"])
         turns, status, prompt = engine.render(segs)
@@ -149,6 +173,9 @@ class Games:
             else:
                 output = self._replay(story, g)
             view = self._view(story, g, output)
+            if g.get("map") is None:
+                self._locate(story, g)
+            view["map"] = self._map_view(story, g)
             self.store.put_progress(uid, gid, g)
             return view
 
@@ -165,6 +192,7 @@ class Games:
                 raise ApiError(409, "this story has ended; restart or restore")
             if len(g["commands"]) >= MAX_TURNS:
                 raise ApiError(409, "this game has reached the turn limit; restart or restore")
+            snap = POOL.submit(engine.snapshot, story["path"], g["seed"], g["commands"] + [cmd])
             r = engine.run(story["path"], g["seed"], g["commands"] + [cmd])
             prev = g["marks"][-1]
             if engine.digest(r.output[:prev]) != g["digest"]:
@@ -176,9 +204,11 @@ class Games:
             body, prompt = engine.split_prompt(rest)
             if st:
                 g["status"] = st
+            self._locate(story, g, cmd, snap.result())
             self.store.put_progress(uid, gid, g)
             return {"turn": {"cmd": cmd, "text": engine.unwrap(body)}, "status": g["status"], "prompt": prompt,
-                    "ended": r.ended, "moves": len(g["commands"]), "canUndo": True}
+                    "ended": r.ended, "moves": len(g["commands"]), "canUndo": True,
+                    "map": self._map_view(story, g)}
 
     def undo(self, uid: int, gid: str) -> dict:
         story = self.story(gid)
@@ -194,6 +224,8 @@ class Games:
                 g["marks"] = [len(r.output)]
             g["digest"], g["ended"] = engine.digest(r.output), r.ended
             view = self._view(story, g, r.output)
+            self._locate(story, g)          # the map keeps what you learned
+            view["map"] = self._map_view(story, g)
             self.store.put_progress(uid, gid, g)
             return view
 
@@ -203,6 +235,8 @@ class Games:
             g = self._fresh(story)
             output = g.pop("_output")
             view = self._view(story, g, output)
+            self._locate(story, g)          # a fresh map
+            view["map"] = self._map_view(story, g)
             self.store.put_progress(uid, gid, g)
             return view
 
@@ -226,9 +260,11 @@ class Games:
             slot = self.store.save_slot(uid, gid, sid)
             if not slot:
                 raise ApiError(404, "no such save")
-            g = {k: slot[k] for k in ("seed", "commands", "marks", "digest", "status")}
+            g = {k: slot[k] for k in ("seed", "commands", "marks", "digest", "status", "map")}
             output = self._replay(story, g)
             view = self._view(story, g, output)
+            self._locate(story, g)          # the save's own map (or a new one, for older saves)
+            view["map"] = self._map_view(story, g)
             self.store.put_progress(uid, gid, g)
             return view
 

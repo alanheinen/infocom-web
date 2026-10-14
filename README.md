@@ -10,6 +10,8 @@ every move, so you can close the tab and continue later on any device.
   Infocom titles by file name.
 - **Autosave after every move**, plus named save slots, **unlimited undo**
   (even in the 1980s games that never had it) and restart.
+- **An automap** that draws the rooms you've visited as you move, centred on
+  where you are, with stubs for the exits you haven't tried yet.
 - **Accounts with passwords**, scrypt-hashed, with rate-limited sign-in.
   Sign-up can be open, first-account-only, or closed (admin-created).
 - **Runs anywhere Docker does.** One small, non-root, read-only container. The
@@ -136,6 +138,18 @@ files outside the log, so typing `save`, `restore` or `undo` opens the app's
 versions instead. `dfrotz` runs with `-R` pointed at an empty scratch
 directory, and its backslash escape commands are stripped from input.
 
+The automap ([`server/mapper.py`](server/mapper.py)) runs a second replay each
+move that ends with the game's own `SAVE`, then reads the player's room out of
+that save file ([`server/zmachine.py`](server/zmachine.py)). Rooms are
+identified by their Z-machine object, so identically named rooms (Zork's
+forests, its maze) stay distinct. Exits are read from the room objects using
+Infocom's ZIL conventions. Plain exits and doors are drawn as unexplored
+stubs. Conditional and scripted ones (secret passages, trap doors) appear only
+once you've gone through them, so the map never gives a puzzle away. Games not
+written in ZIL get the map of where you've been, without exit stubs. The map is
+kept with the autosave and with each save slot. Undo keeps what you've learned,
+and restart clears it.
+
 If an interpreter upgrade ever changes the output, saved games still replay
 correctly. Only the earlier part of the transcript loses its echoed commands.
 
@@ -146,6 +160,8 @@ server/serve.py      HTTP server, auth, routing, admin commands
 server/engine.py     dfrotz replay, transcript rebuilding, status line
 server/store.py      SQLite: users, sessions, autosaves, save slots
 server/catalog.py    finds story files and matches them to catalog.json
+server/mapper.py     the automap: location, passages, exits
+server/zmachine.py   reads the object table, dictionary and Quetzal saves
 web/                 the page (vanilla JS, no build step)
 tests/smoke.py       end-to-end test against a running server (CI runs it)
 ```

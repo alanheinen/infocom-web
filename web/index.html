@@ -7,6 +7,7 @@
   <title>Infocom Library</title>
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
+  <script src="/map.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -72,11 +73,13 @@
           <span class="status" id="status"><span id="status-left"></span><span id="status-right"></span></span>
         </div>
         <div class="tools">
+          <button type="button" id="btn-map" title="Show or hide the map" aria-pressed="false" aria-controls="map-panel">Map</button>
           <button type="button" id="btn-undo" title="Take back the last command">Undo</button>
           <button type="button" id="btn-saves" title="Save or restore">Saves</button>
           <button type="button" id="btn-restart" title="Start this story over">Restart</button>
         </div>
       </div>
+      <div class="play-body">
       <div class="screen" id="screen" aria-live="polite">
         <div class="transcript" id="transcript"></div>
         <div class="ended" id="ended" hidden>
@@ -90,6 +93,19 @@
           <input id="cmd" name="cmd" maxlength="200" autocapitalize="none" autocorrect="off" spellcheck="false"
                  enterkeyhint="send" aria-label="Command">
         </form>
+      </div>
+      <aside class="map-panel" id="map-panel" aria-label="Map" hidden>
+        <div class="map-head">
+          <strong>Map</strong>
+          <span class="map-hint" id="map-hint"></span>
+          <button type="button" class="icon" id="map-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
+          <button type="button" class="icon" id="map-in" title="Zoom in" aria-label="Zoom in">+</button>
+          <button type="button" class="icon" id="map-center" title="Centre on your room" aria-label="Centre on your room">&#9678;</button>
+          <button type="button" class="icon map-close" id="map-close" title="Close the map" aria-label="Close the map">&times;</button>
+        </div>
+        <div class="map-canvas" id="map-canvas"></div>
+        <p class="map-empty" id="map-empty" hidden>No map for this story.</p>
+      </aside>
       </div>
     </section>
   </main>

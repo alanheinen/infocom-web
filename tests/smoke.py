@@ -73,6 +73,16 @@ def main():
     c.call("POST", f"games/{gid}/command", {"command": "north"})
     c.call("POST", f"games/{gid}/command", {"command": "east"})
 
+    # The automap: West of House -> north -> North of House -> east -> Behind House.
+    m = c.call("GET", f"games/{gid}")["map"]
+    names = {r["id"]: r["name"] for r in m["rooms"]}
+    assert names[m["here"]] == "Behind House", m
+    assert {"West of House", "North of House", "Behind House"} <= set(names.values()), names
+    walked = {(names[a], d, names[b]) for a, d, b in m["edges"]}
+    assert ("West of House", "n", "North of House") in walked and ("North of House", "e", "Behind House") in walked, walked
+    behind = next(r for r in m["rooms"] if r["id"] == m["here"])
+    assert {"w", "in"} <= {x["dir"] for x in behind["exits"] if x["door"]}, behind   # the kitchen window
+
     # Cold open: replays from the database and rebuilds the echoed commands.
     v = c.call("GET", f"games/{gid}")
     assert [t["cmd"] for t in v["turns"]] == [None, "open mailbox", "take leaflet", "x north", "north", "east"], v
@@ -80,6 +90,7 @@ def main():
 
     v = c.call("POST", f"games/{gid}/saves/{sid}/restore", {})
     assert v["moves"] == 3 and "West of House" in v["status"], v
+    assert len(v["map"]["rooms"]) == 1, v["map"]   # the save's map, from before the walk
     lib = {g["id"]: g for g in c.call("GET", "games")["games"]}
     assert lib[gid]["progress"]["moves"] == 3, lib[gid]
 

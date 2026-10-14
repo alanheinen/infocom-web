@@ -58,6 +58,11 @@ CREATE TABLE IF NOT EXISTS saves (
 );
 CREATE INDEX IF NOT EXISTS saves_by_game ON saves(user_id, game_id);
 """
+# Columns added after the first release, applied to existing databases.
+MIGRATIONS = [
+    "ALTER TABLE progress ADD COLUMN map TEXT",   # automap (mapper.py), JSON
+    "ALTER TABLE saves ADD COLUMN map TEXT",
+]
 
 # scrypt, N=2^15 r=8 p=1: 32 MiB and ~50 ms per hash. OWASP suggests N=2^17,
 # but that is 128 MiB per concurrent login, too much for a small pod.
@@ -97,6 +102,12 @@ class Store:
         with self.lock:
             self.db.execute("PRAGMA foreign_keys = ON")
             self.db.executescript(SCHEMA)
+            for sql in MIGRATIONS:
+                try:
+                    self.db.execute(sql)
+                except sqlite3.OperationalError as e:   # already applied
+                    if "duplicate column" not in str(e):
+                        raise
         os.chmod(path, 0o600)
 
     def _q(self, sql: str, args=()) -> list[sqlite3.Row]:
@@ -166,6 +177,7 @@ class Store:
         g = dict(row)
         g["commands"] = json.loads(g["commands"])
         g["marks"] = json.loads(g["marks"])
+        g["map"] = json.loads(g["map"]) if g.get("map") else None
         return g
 
     def progress(self, user_id: int, game_id: str) -> dict | None:
@@ -179,10 +191,11 @@ class Store:
 
     def put_progress(self, user_id: int, game_id: str, g: dict) -> None:
         self._x("""INSERT OR REPLACE INTO progress
-                   (user_id, game_id, seed, commands, marks, digest, status, ended, updated)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (user_id, game_id, seed, commands, marks, digest, status, ended, updated, map)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (user_id, game_id, g["seed"], json.dumps(g["commands"]), json.dumps(g["marks"]),
-                 g["digest"], g.get("status"), int(bool(g.get("ended"))), int(time.time())))
+                 g["digest"], g.get("status"), int(bool(g.get("ended"))), int(time.time()),
+                 json.dumps(g["map"]) if g.get("map") else None))
 
     def saves(self, user_id: int, game_id: str) -> list[dict]:
         rows = self._q("""SELECT id, name, status, created, json_array_length(commands) AS moves
@@ -196,10 +209,11 @@ class Store:
         return self._game(rows[0] if rows else None)
 
     def add_save(self, user_id: int, game_id: str, name: str, g: dict) -> int:
-        cur = self._x("""INSERT INTO saves (user_id, game_id, name, seed, commands, marks, digest, status, created)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        cur = self._x("""INSERT INTO saves (user_id, game_id, name, seed, commands, marks, digest, status, created, map)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                       (user_id, game_id, name, g["seed"], json.dumps(g["commands"]),
-                       json.dumps(g["marks"]), g["digest"], g.get("status"), int(time.time())))
+                       json.dumps(g["marks"]), g["digest"], g.get("status"), int(time.time()),
+                       json.dumps(g["map"]) if g.get("map") else None))
         return cur.lastrowid
 
     def delete_save(self, user_id: int, game_id: str, sid: int) -> bool:

@@ -229,6 +229,9 @@ function setMap(m) {
   renderMap();
 }
 
+// The key starts folded on a phone, where the map has little room.
+if (!WIDE.matches) $("#map-key").open = false;
+
 $("#btn-map").addEventListener("click", () => showMap(mapPanel.hidden, true));
 $("#map-close").addEventListener("click", () => showMap(false, false));
 $("#map-in").addEventListener("click", () => autoMap && autoMap.zoomBy(1.25));

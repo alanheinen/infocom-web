@@ -16,11 +16,11 @@ const AutoMap = (() => {
   };
   const OPPOSITE = { n: "s", s: "n", e: "w", w: "e", ne: "sw", sw: "ne", nw: "se", se: "nw", u: "d", d: "u", in: "out", out: "in" };
   const LABEL = { u: "up", d: "down", in: "in", out: "out", land: "land" };
+  const NAMES = { n: "N", s: "S", e: "E", w: "W", ne: "NE", nw: "NW", se: "SE", sw: "SW" };
   // Where to try putting a room reached by up/down/in/out (no compass bearing).
   const NONPLANAR_TRY = { u: ["ne", "nw", "n"], d: ["sw", "se", "s"], in: ["se", "e"], out: ["nw", "w"] };
   const RING = ["e", "s", "w", "n", "se", "sw", "nw", "ne"];
 
-  const angle = (a, b) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
   const el = (name, attrs, parent) => {
     const e = document.createElementNS(SVG, name);
     for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v);
@@ -47,22 +47,31 @@ const AutoMap = (() => {
       }
       return [x, y + 50];
     };
+    // Opens an empty row or column next to (x, y) on the side (dx, dy) points
+    // to, by pushing every room beyond it one step further out. Every pair of
+    // rooms keeps its bearing (who is north, east... of whom), so north stays
+    // up for every passage already drawn.
+    const openGap = (x, y, dx, dy) => {
+      const moved = [];
+      for (const [id, q] of pos) {
+        if (dx > 0 && q.x > x) q.x += 1;
+        else if (dx < 0 && q.x < x) q.x -= 1;
+        else if (dx === 0 && dy < 0 && q.y < y) q.y -= 1;
+        else if (dx === 0 && dy > 0 && q.y > y) q.y += 1;
+        moved.push([id, q]);
+      }
+      taken.clear();
+      for (const [id, q] of moved) taken.set(key(q.x, q.y), id);
+    };
     const placeFrom = (fromId, dir, toId) => {
       const p = pos.get(fromId);
       if (dir && VEC[dir]) {
         const [dx, dy] = VEC[dir];
-        if (free(p.x + dx, p.y + dy)) return put(toId, p.x + dx, p.y + dy);
-        // Taken (Zork's geography isn't a grid): use the free cell next to
-        // the room you came from whose bearing is closest, so the passage
-        // stays short and never runs underneath another room.
-        const want = Math.atan2(dy, dx);
-        const around = Object.values(VEC)
-          .filter(([ax, ay]) => free(p.x + ax, p.y + ay))
-          .sort((u, v) => angle(Math.atan2(u[1], u[0]), want) - angle(Math.atan2(v[1], v[0]), want));
-        if (around.length) return put(toId, p.x + around[0][0], p.y + around[0][1]);
-        const [x, y] = nearest(p.x + dx, p.y + dy);
-        return put(toId, x, y);
+        // A compass passage always goes the way it says: north is up.
+        if (!free(p.x + dx, p.y + dy)) openGap(p.x, p.y, dx, dy);
+        return put(toId, p.x + dx, p.y + dy);
       }
+      // up, down, in, out or an unknown passage: any nearby free cell.
       const [x, y] = nearest(p.x, p.y, NONPLANAR_TRY[dir] || RING);
       put(toId, x, y);
     };
@@ -145,9 +154,13 @@ const AutoMap = (() => {
         drawn.add(pair);
         const [x1, y1] = px(a), [x2, y2] = px(b);
         el("line", { x1, y1, x2, y2, class: d ? "edge" : "edge unknown" }, edges);
-        if (d && !VEC[d]) {
+        // Name the direction when the line can't show it: up/down/in/out, or
+        // a passage that loops back to a room already placed elsewhere (the
+        // games' geography isn't always a grid).
+        const bent = d && VEC[d] && (Math.sign(x2 - x1) !== VEC[d][0] || Math.sign(y2 - y1) !== VEC[d][1]);
+        if (d && (!VEC[d] || bent)) {
           const t = el("text", { x: (x1 + x2) / 2, y: (y1 + y2) / 2 - 4, class: "edge-label" }, labels);
-          t.textContent = LABEL[d] || d;
+          t.textContent = LABEL[d] || NAMES[d] || d;
         }
       }
 
@@ -249,5 +262,5 @@ const AutoMap = (() => {
     }
   }
 
-  return { View };
+  return { View, layout };
 })();

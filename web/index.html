@@ -103,8 +103,31 @@
           <button type="button" class="icon" id="map-center" title="Centre on your room" aria-label="Centre on your room">&#9678;</button>
           <button type="button" class="icon map-close" id="map-close" title="Close the map" aria-label="Close the map">&times;</button>
         </div>
-        <div class="map-canvas" id="map-canvas"></div>
+        <div class="map-canvas" id="map-canvas">
+          <svg class="compass" viewBox="-30 -30 60 60" aria-label="Compass: north is up" role="img">
+            <circle r="27" class="ring"/>
+            <path d="M0 -12 L4 0 L0 -2 L-4 0 Z" class="needle-n"/>
+            <path d="M0 12 L4 0 L0 2 L-4 0 Z" class="needle-s"/>
+            <text y="-19.5" class="nlabel">N</text>
+            <text x="20" y="0.5">E</text>
+            <text y="20.5">S</text>
+            <text x="-20" y="0.5">W</text>
+          </svg>
+        </div>
         <p class="map-empty" id="map-empty" hidden>No map for this story.</p>
+        <details class="map-key" id="map-key" open>
+          <summary>Key</summary>
+          <ul>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><rect x="2" y="2" width="24" height="12" rx="3" class="k-here"/></svg>You are here</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><rect x="2" y="2" width="24" height="12" rx="3" class="k-room"/></svg>Visited room</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><rect x="2" y="2" width="24" height="12" rx="3" class="k-room k-dark"/></svg>Couldn't see (dark)</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="26" y2="8" class="k-edge"/></svg>Passage you've used</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="20" y2="8" class="k-stub"/><circle cx="21" cy="8" r="3" class="k-end"/></svg>Exit not yet taken</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="20" y2="8" class="k-stub k-door"/><circle cx="21" cy="8" r="3" class="k-end"/></svg>Door or window</li>
+            <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="26" y2="8" class="k-edge k-unknown"/></svg>Moved without a direction</li>
+            <li><span class="k-text">up · down</span>Exits that aren't on the compass</li>
+          </ul>
+        </details>
       </aside>
       </div>
     </section>

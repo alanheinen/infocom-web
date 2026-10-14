@@ -208,6 +208,27 @@ svg.automap.grabbing { cursor: grabbing; }
 .automap .extra { fill: var(--faint); font: 10px var(--f-ui); text-anchor: middle; opacity: .8; }
 .automap .extra.here { fill: var(--accent); opacity: 1; font-weight: 600; }
 
+.compass { position: absolute; right: 10px; bottom: 10px; width: 72px; height: 72px; pointer-events: none; z-index: 1; }
+.compass .ring { fill: var(--surface); fill-opacity: .85; stroke: var(--line); stroke-width: 1.5; }
+.compass .needle-n { fill: var(--accent); }
+.compass .needle-s { fill: var(--faint); }
+.compass text { font: 700 8.5px var(--f-ui); text-anchor: middle; dominant-baseline: middle; fill: var(--muted); }
+.compass .nlabel { fill: var(--accent); font-size: 10px; }
+.map-key { border-top: 1px solid var(--line); font-size: .78rem; color: var(--muted); }
+.map-key summary { cursor: pointer; padding: .4rem .9rem; font-weight: 600; }
+.map-key ul { list-style: none; margin: 0; padding: 0 .9rem .6rem; display: grid; grid-template-columns: 1fr 1fr; gap: .25rem .75rem; }
+.map-key li { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.map-key svg { width: 28px; height: 16px; flex: none; }
+.map-key .k-here { fill: var(--accent); }
+.map-key .k-room { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; }
+.map-key .k-dark { stroke-dasharray: 3 2; }
+.map-key .k-edge { stroke: var(--muted); stroke-width: 2; }
+.map-key .k-unknown { stroke-dasharray: 4 4; }
+.map-key .k-stub { stroke: var(--accent); stroke-width: 2; }
+.map-key .k-door { stroke-dasharray: 3 3; }
+.map-key .k-end { fill: var(--accent); }
+.map-key .k-text { flex: none; width: 28px; font-size: .62rem; line-height: 1; color: var(--accent); font-weight: 600; text-align: center; }
+
 /* --- dialogs --- */
 dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg);
   padding: 0; width: min(560px, calc(100vw - 2 * var(--gutter))); box-shadow: var(--shadow); }

@@ -214,6 +214,25 @@ svg.automap.grabbing { cursor: grabbing; }
 .compass .needle-s { fill: var(--faint); }
 .compass text { font: 700 8.5px var(--f-ui); text-anchor: middle; dominant-baseline: middle; fill: var(--muted); }
 .compass .nlabel { fill: var(--accent); font-size: 10px; }
+.map-panel.mode-3d svg.automap:not(.automap3d), .map-panel.mode-3d .compass2d,
+.map-panel:not(.mode-3d) .automap3d, .map-panel:not(.mode-3d) .compass3d,
+.map-panel.mode-3d .k-2d, .map-panel:not(.mode-3d) .k-3d { display: none; }
+button.mode { height: 30px; padding: 0 .55rem; font: 700 .75rem var(--f-ui); letter-spacing: .04em; }
+.compass3d { pointer-events: auto; cursor: pointer; border-radius: 50%; }
+.compass3d:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.automap3d:focus-visible { outline: none; }
+.automap3d .plate { fill: var(--surface-2); fill-opacity: .2; stroke: var(--line); stroke-width: 1; stroke-dasharray: 2 4; }
+.automap3d .plate-label { fill: var(--faint); font: 600 10px var(--f-ui); letter-spacing: .03em; }
+.automap3d .level:not(.current) { opacity: .55; }
+.automap3d .level.current .plate { fill-opacity: .4; stroke-dasharray: none; }
+.automap3d .level.current .plate-label { fill: var(--accent); }
+.automap3d .room .side { fill: var(--line); stroke: var(--line); stroke-width: 1; stroke-linejoin: round; }
+.automap3d .room .top { fill: var(--surface-2); stroke: var(--line); stroke-width: 1.5; stroke-linejoin: round; }
+.automap3d .room.dark .top { stroke-dasharray: 4 3; }
+.automap3d .room.here .side { fill: var(--accent); stroke: var(--accent); filter: brightness(.7); }
+.automap3d .room.here .top { fill: var(--accent); stroke: var(--accent); }
+.automap3d .room text { pointer-events: none; }
+.map-key .k-plate { fill: var(--surface-2); stroke: var(--accent); stroke-width: 1; }
 .map-key { border-top: 1px solid var(--line); font-size: .78rem; color: var(--muted); }
 .map-key summary { cursor: pointer; padding: .4rem .9rem; font-weight: 600; }
 .map-key ul { list-style: none; margin: 0; padding: 0 .9rem .6rem; display: grid; grid-template-columns: 1fr 1fr; gap: .25rem .75rem; }

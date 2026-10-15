@@ -82,9 +82,15 @@ const AutoMap = (() => {
     let progress = true;
     while (progress) {
       progress = false;
-      for (const [a, d, b] of data.edges) {
-        if (pos.has(a) && !pos.has(b)) { placeFrom(a, d, b); progress = true; }
-        else if (pos.has(b) && !pos.has(a)) { placeFrom(b, OPPOSITE[d] || null, a); progress = true; }
+      // Real passages first; a move with no direction (dying, a spell) places
+      // a room only when nothing better reaches it, and only one at a time.
+      for (const known of [true, false]) {
+        for (const [a, d, b] of data.edges) {
+          if (!!d !== known || progress && !known) continue;
+          if (pos.has(a) && !pos.has(b)) { placeFrom(a, d, b); progress = true; }
+          else if (pos.has(b) && !pos.has(a)) { placeFrom(b, OPPOSITE[d] || null, a); progress = true; }
+        }
+        if (progress) break;
       }
       if (!progress) {
         // A room with no recorded passage (e.g. an older save): start a new island.
@@ -262,5 +268,5 @@ const AutoMap = (() => {
     }
   }
 
-  return { View, layout };
+  return { View, layout, wrap, VEC, OPPOSITE, LABEL, NAMES, NONPLANAR_TRY, RING };
 })();

@@ -11,7 +11,9 @@ every move, so you can close the tab and continue later on any device.
 - **Autosave after every move**, plus named save slots, **unlimited undo**
   (even in the 1980s games that never had it) and restart.
 - **An automap** that draws the rooms you've visited as you move, centred on
-  where you are, with stubs for the exits you haven't tried yet.
+  where you are, with stubs for the exits you haven't tried yet. In 3D (the
+  default) every way up or down leads to its own level, stacked like floors;
+  drag to turn it, tap the compass for north-up, or switch to the flat map.
 - **Accounts with passwords**, scrypt-hashed, with rate-limited sign-in.
   Sign-up can be open, first-account-only, or closed (admin-created).
 - **Runs anywhere Docker does.** One small, non-root, read-only container. The
@@ -162,7 +164,8 @@ server/store.py      SQLite: users, sessions, autosaves, save slots
 server/catalog.py    finds story files and matches them to catalog.json
 server/mapper.py     the automap: location, passages, exits
 server/zmachine.py   reads the object table, dictionary and Quetzal saves
-web/                 the page (vanilla JS, no build step)
+web/                 the page (vanilla JS, no build step); map.js and
+                     map3d.js are the flat and 3D automaps
 tests/smoke.py       end-to-end test against a running server (CI runs it)
 ```
 

@@ -8,6 +8,7 @@
   <link rel="icon" href="/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
   <script src="/map.js" defer></script>
+  <script src="/map3d.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -98,13 +99,14 @@
         <div class="map-head">
           <strong>Map</strong>
           <span class="map-hint" id="map-hint"></span>
+          <button type="button" class="mode" id="map-mode" aria-pressed="true">3D</button>
           <button type="button" class="icon" id="map-out" title="Zoom out" aria-label="Zoom out">&minus;</button>
           <button type="button" class="icon" id="map-in" title="Zoom in" aria-label="Zoom in">+</button>
-          <button type="button" class="icon" id="map-center" title="Centre on your room" aria-label="Centre on your room">&#9678;</button>
+          <button type="button" class="icon" id="map-center" title="Centre on your room and reset the view" aria-label="Centre on your room and reset the view">&#9678;</button>
           <button type="button" class="icon map-close" id="map-close" title="Close the map" aria-label="Close the map">&times;</button>
         </div>
         <div class="map-canvas" id="map-canvas">
-          <svg class="compass" viewBox="-30 -30 60 60" aria-label="Compass: north is up" role="img">
+          <svg class="compass compass2d" viewBox="-30 -30 60 60" aria-label="Compass: north is up" role="img">
             <circle r="27" class="ring"/>
             <path d="M0 -12 L4 0 L0 -2 L-4 0 Z" class="needle-n"/>
             <path d="M0 12 L4 0 L0 2 L-4 0 Z" class="needle-s"/>
@@ -125,7 +127,9 @@
             <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="20" y2="8" class="k-stub"/><circle cx="21" cy="8" r="3" class="k-end"/></svg>Exit not yet taken</li>
             <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="20" y2="8" class="k-stub k-door"/><circle cx="21" cy="8" r="3" class="k-end"/></svg>Door or window</li>
             <li><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="2" y1="8" x2="26" y2="8" class="k-edge k-unknown"/></svg>Moved without a direction</li>
-            <li><span class="k-text">up · down</span>Exits that aren't on the compass</li>
+            <li class="k-3d"><svg viewBox="0 0 28 16" aria-hidden="true"><line x1="14" y1="15" x2="14" y2="4" class="k-stub"/><circle cx="14" cy="4" r="3" class="k-end"/></svg>Way up or down</li>
+            <li class="k-3d"><svg viewBox="0 0 28 16" aria-hidden="true"><polygon points="6,3 27,3 22,13 1,13" class="k-plate"/></svg>A level</li>
+            <li><span class="k-text"><span class="k-2d">up · </span>in</span>Exits that aren't on the compass</li>
           </ul>
         </details>
       </aside>

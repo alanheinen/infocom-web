@@ -53,6 +53,7 @@ STATIC = {"/": ("index.html", "text/html; charset=utf-8"),
           "/app.css": ("app.css", "text/css; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
           "/map.js": ("map.js", "text/javascript; charset=utf-8"),
+          "/map3d.js": ("map3d.js", "text/javascript; charset=utf-8"),
           "/icon.svg": ("icon.svg", "image/svg+xml")}
 USERNAME = re.compile(r"^[A-Za-z0-9_.-]{2,32}$")
 MAX_BODY = 16 * 1024

@@ -165,7 +165,11 @@ def update(m: dict | None, si: StoryInfo, save: bytes | None, status: str | None
         if said and static.get(said, {}).get("to") == room:
             d = said
         else:
-            d = next((k for k, v in static.items() if v["to"] == room), None) or said
+            d = next((k for k, v in static.items() if v["to"] == room), None)
+            # That way leads somewhere else, so something else moved the player
+            # (dying, a spell, being carried off): don't claim the passage.
+            if d is None and said and static.get(said, {}).get("to") is None:
+                d = said
         edge = [prev, d, room]
         if edge not in m["edges"]:
             m["edges"].append(edge)

@@ -188,8 +188,26 @@ function setStatus(status) {
 // --- map --------------------------------------------------------------------
 
 let autoMap = null;
+const mapViews = {};
 const mapPanel = $("#map-panel");
 const WIDE = matchMedia("(min-width: 1000px)");
+let map3D = (() => {
+  try { return localStorage.getItem("infocom.map3d") !== "0"; } catch { return true; }
+})();
+
+// The 3D and flat maps each draw into the canvas; only one is shown.
+function setMapMode(deep) {
+  map3D = deep;
+  const btn = $("#map-mode");
+  btn.setAttribute("aria-pressed", String(deep));
+  btn.textContent = deep ? "3D" : "2D";
+  btn.title = deep ? "Showing levels in 3D. Switch to the flat map" : "Showing the flat map. Switch to 3D";
+  mapPanel.classList.toggle("mode-3d", deep);
+  const name = deep ? "deep" : "flat";
+  mapViews[name] ||= new (deep ? AutoMap3D : AutoMap).View($("#map-canvas"));
+  autoMap = mapViews[name];
+  renderMap();
+}
 
 function mapWanted() {
   try {
@@ -207,8 +225,7 @@ function showMap(open, remember) {
     try { localStorage.setItem("infocom.map", open ? "1" : "0"); } catch { /* fine */ }
   }
   if (open) {
-    autoMap ||= new AutoMap.View($("#map-canvas"));
-    renderMap();
+    setMapMode(map3D);
   } else if (!$("#input-form").hidden) {
     cmdInput.focus({ preventScroll: true });
   }
@@ -236,7 +253,11 @@ $("#btn-map").addEventListener("click", () => showMap(mapPanel.hidden, true));
 $("#map-close").addEventListener("click", () => showMap(false, false));
 $("#map-in").addEventListener("click", () => autoMap && autoMap.zoomBy(1.25));
 $("#map-out").addEventListener("click", () => autoMap && autoMap.zoomBy(0.8));
-$("#map-center").addEventListener("click", () => autoMap && autoMap.center(true));
+$("#map-center").addEventListener("click", () => autoMap && autoMap.center(true, true));
+$("#map-mode").addEventListener("click", () => {
+  setMapMode(!map3D);
+  try { localStorage.setItem("infocom.map3d", map3D ? "1" : "0"); } catch { /* fine */ }
+});
 mapPanel.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !WIDE.matches) showMap(false, false);
 });

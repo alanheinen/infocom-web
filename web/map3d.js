@@ -5,7 +5,7 @@
 "use strict";
 
 const AutoMap3D = (() => {
-  const { wrap, VEC, OPPOSITE, LABEL, NAMES, NONPLANAR_TRY, RING } = AutoMap;
+  const { wrap, VEC, LABEL, NAMES } = AutoMap;
   const SVG = "http://www.w3.org/2000/svg";
   const CELL_X = 150, CELL_Y = 120, LEVEL = 230;     // world units between rooms and levels
   const BOX_W = 118, BOX_H = 72, SLAB = 9, STUB = 22, RISE = 34;
@@ -22,84 +22,7 @@ const AutoMap3D = (() => {
   };
   const pts = (list) => list.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
 
-  // Like AutoMap.layout, plus a level (z). Up and down go to the room straight
-  // above or below when that spot is free. A compass passage that runs into a
-  // room opens a gap through every level, so rooms stacked above one another
-  // stay stacked.
-  function layout(data) {
-    const pos = new Map(), taken = new Map();
-    const key = (x, y, z) => `${x},${y},${z}`;
-    const put = (id, x, y, z) => { pos.set(id, { x, y, z }); taken.set(key(x, y, z), id); };
-    const free = (x, y, z) => !taken.has(key(x, y, z));
-    const nearest = (x, y, z, prefer) => {
-      for (const d of prefer || []) {
-        const [dx, dy] = VEC[d];
-        if (free(x + dx, y + dy, z)) return [x + dx, y + dy];
-      }
-      for (let r = 1; r < 50; r++) {
-        for (let dy = -r; dy <= r; dy++) {
-          for (let dx = -r; dx <= r; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) === r && free(x + dx, y + dy, z)) return [x + dx, y + dy];
-          }
-        }
-      }
-      return [x, y + 50];
-    };
-    const openGap = (x, y, dx, dy) => {
-      for (const q of pos.values()) {
-        if (dx > 0 && q.x > x) q.x += 1;
-        else if (dx < 0 && q.x < x) q.x -= 1;
-        else if (dx === 0 && dy < 0 && q.y < y) q.y -= 1;
-        else if (dx === 0 && dy > 0 && q.y > y) q.y += 1;
-      }
-      taken.clear();
-      for (const [id, q] of pos) taken.set(key(q.x, q.y, q.z), id);
-    };
-    const placeFrom = (fromId, dir, toId) => {
-      const p = pos.get(fromId);
-      if (dir && VEC[dir]) {
-        const [dx, dy] = VEC[dir];
-        if (!free(p.x + dx, p.y + dy, p.z)) openGap(p.x, p.y, dx, dy);
-        return put(toId, p.x + dx, p.y + dy, p.z);
-      }
-      if (VERTICAL[dir]) {
-        const z = p.z + VERTICAL[dir];
-        if (free(p.x, p.y, z)) return put(toId, p.x, p.y, z);
-        const [x, y] = nearest(p.x, p.y, z, RING);
-        return put(toId, x, y, z);
-      }
-      const [x, y] = nearest(p.x, p.y, p.z, NONPLANAR_TRY[dir] || RING);
-      put(toId, x, y, p.z);
-    };
-
-    const ids = data.rooms.map((r) => r.id);
-    if (!ids.length) return pos;
-    put(ids[0], 0, 0, 0);
-    let progress = true;
-    while (progress) {
-      progress = false;
-      // Real passages first; a move with no direction (dying, a spell) places
-      // a room only when nothing better reaches it, and only one at a time.
-      for (const known of [true, false]) {
-        for (const [a, d, b] of data.edges) {
-          if (!!d !== known || progress && !known) continue;
-          if (pos.has(a) && !pos.has(b)) { placeFrom(a, d, b); progress = true; }
-          else if (pos.has(b) && !pos.has(a)) { placeFrom(b, OPPOSITE[d] || null, a); progress = true; }
-        }
-        if (progress) break;
-      }
-      if (!progress) {
-        const loose = ids.find((id) => !pos.has(id));
-        if (loose !== undefined) {
-          let maxX = -Infinity;
-          for (const p of pos.values()) maxX = Math.max(maxX, p.x);
-          put(loose, maxX + 2, 0, 0);
-          progress = true;
-        }
-      }
-    }
-    return pos;
-  }
+  const layout = (data) => AutoMap.layout(data, true);
 
   // Convex hull (monotone chain) of a few screen points: the outline of a slab.
   function hull(points) {

@@ -148,7 +148,12 @@ forests, its maze) stay distinct. Exits are read from the room objects using
 Infocom's ZIL conventions. Plain exits and doors are drawn as unexplored
 stubs. Conditional and scripted ones (secret passages, trap doors) appear only
 once you've gone through them, so the map never gives a puzzle away. Games not
-written in ZIL get the map of where you've been, without exit stubs. The map is
+written in ZIL get the map of where you've been, without exit stubs. The games'
+geography isn't a grid (Zork's forest loops back on itself), so the page
+places each room where all its passages to rooms already on the map say it
+should go, then moves or swaps rooms wherever that makes more passages point
+true. Any passage that still can't be drawn the way it goes is labelled with
+its direction. The map is
 kept with the autosave and with each save slot. Undo keeps what you've learned,
 and restart clears it.
 

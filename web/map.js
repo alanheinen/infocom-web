@@ -28,57 +28,128 @@ const AutoMap = (() => {
     return e;
   };
 
-  function layout(data) {
+  // Lays the rooms out on a grid: id -> {x, y, z}. With levels (the 3D map)
+  // up and down lead to the level above or below; without, they and in/out
+  // only mean "nearby", and z is always 0.
+  //
+  // The games' geography isn't a grid (Zork's forest and the paths round
+  // its house loop back on themselves), so some passages can't be drawn the
+  // way they go. The aim is to draw as many as possible true, keep the rest
+  // near misses and short, and not rearrange the map as it grows:
+  // 1. Rooms are placed in the order you found them. Each goes where its
+  //    passages to rooms already placed say it should, weighing all of them;
+  //    if that spot is taken, a row or column opens to make room.
+  // 2. Then a room moves, or two swap, wherever that makes more passages
+  //    point true.
+  const VERT = { u: 1, d: -1 };
+  const LONG = 0.2;   // cost of each extra grid step a passage spans
+  const THROUGH = 0.6; // cost of a passage drawn across another room
+
+  // What one passage of the layout costs: 0 when drawn true and one step long.
+  function cost(A, B, l, occupied) {
+    const dx = B.x - A.x, dy = B.y - A.y, dz = B.z - A.z, len = Math.max(Math.abs(dx), Math.abs(dy));
+    let long = LONG * Math.max(0, len - 1);
+    // A straight or diagonal line that runs through another room's box
+    // looks like it leads there.
+    if (occupied && len > 1 && dz === 0 && (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy))) {
+      const sx = Math.sign(dx), sy = Math.sign(dy);
+      for (let i = 1; i < len; i++) if (occupied(A.x + sx * i, A.y + sy * i, A.z)) long += THROUGH;
+    }
+    if (l.kind === "compass") {
+      if (Math.sign(dx) === l.off[0] && Math.sign(dy) === l.off[1] && dz === 0) return long;
+      // Drawn the wrong way: worse the further off it points (S drawn as SE
+      // is a near miss, S drawn as N is not).
+      let turn = len ? Math.abs(Math.atan2(dy, dx) - Math.atan2(l.off[1], l.off[0])) : Math.PI;
+      if (turn > Math.PI) turn = 2 * Math.PI - turn;
+      return 0.5 + 0.5 * turn / Math.PI + long + 0.3 * Math.abs(dz);
+    }
+    if (l.kind === "vertical") {
+      const ok = dx === 0 && dy === 0 && Math.sign(dz) === l.off[2];
+      return (ok ? 0 : 1) + LONG * (len + Math.max(0, Math.abs(dz) - 1));
+    }
+    return long + 0.3 * Math.abs(dz);
+  }
+
+  function layout(data, levels = false) {
     const pos = new Map(), taken = new Map();
-    const key = (x, y) => `${x},${y}`;
-    const put = (id, x, y) => { pos.set(id, { x, y }); taken.set(key(x, y), id); };
-    const free = (x, y) => !taken.has(key(x, y));
-    const nearest = (x, y, prefer) => {
+    const key = (x, y, z) => `${x},${y},${z}`;
+    const put = (id, x, y, z) => { pos.set(id, { x, y, z }); taken.set(key(x, y, z), id); };
+    const free = (x, y, z) => !taken.has(key(x, y, z));
+    const occupied = (x, y, z) => taken.has(key(x, y, z));
+    const ids = data.rooms.map((r) => r.id);
+    if (!ids.length) return pos;
+
+    // Each room's passages, as seen from that room.
+    const links = new Map(ids.map((id) => [id, []]));
+    const seen = new Set();
+    for (const [a, d, b] of data.edges) {
+      if (a === b || !links.has(a) || !links.has(b) || seen.has(`${a} ${d} ${b}`)) continue;
+      seen.add(`${a} ${d} ${b}`);
+      let off = null, kind = "near";
+      if (VEC[d]) { off = [VEC[d][0], VEC[d][1], 0]; kind = "compass"; }
+      else if (levels && VERT[d]) { off = [0, 0, VERT[d]]; kind = "vertical"; }
+      links.get(a).push({ o: b, d, off, kind });
+      links.get(b).push({ o: a, d: OPPOSITE[d] || null, off: off && off.map((v) => -v), kind });
+    }
+
+    const nearest = (x, y, z, prefer) => {
       for (const d of prefer || []) {
         const [dx, dy] = VEC[d];
-        if (free(x + dx, y + dy)) return [x + dx, y + dy];
+        if (free(x + dx, y + dy, z)) return [x + dx, y + dy];
       }
       for (let r = 1; r < 50; r++) {
         for (let dy = -r; dy <= r; dy++) {
           for (let dx = -r; dx <= r; dx++) {
-            if (Math.max(Math.abs(dx), Math.abs(dy)) === r && free(x + dx, y + dy)) return [x + dx, y + dy];
+            if (Math.max(Math.abs(dx), Math.abs(dy)) === r && free(x + dx, y + dy, z)) return [x + dx, y + dy];
           }
         }
       }
       return [x, y + 50];
     };
-    // Opens an empty row or column next to (x, y) on the side (dx, dy) points
-    // to, by pushing every room beyond it one step further out. Every pair of
-    // rooms keeps its bearing (who is north, east... of whom), so north stays
-    // up for every passage already drawn.
+    // Opens an empty row or column (through every level) next to (x, y) on
+    // the side (dx, dy) points to, by pushing every room beyond it one step
+    // further out. Every pair of rooms keeps its bearing, so no passage
+    // already drawn changes direction.
     const openGap = (x, y, dx, dy) => {
-      const moved = [];
-      for (const [id, q] of pos) {
+      for (const q of pos.values()) {
         if (dx > 0 && q.x > x) q.x += 1;
         else if (dx < 0 && q.x < x) q.x -= 1;
         else if (dx === 0 && dy < 0 && q.y < y) q.y -= 1;
         else if (dx === 0 && dy > 0 && q.y > y) q.y += 1;
-        moved.push([id, q]);
       }
       taken.clear();
-      for (const [id, q] of moved) taken.set(key(q.x, q.y), id);
+      for (const [id, q] of pos) taken.set(key(q.x, q.y, q.z), id);
     };
-    const placeFrom = (fromId, dir, toId) => {
-      const p = pos.get(fromId);
-      if (dir && VEC[dir]) {
-        const [dx, dy] = VEC[dir];
-        // A compass passage always goes the way it says: north is up.
-        if (!free(p.x + dx, p.y + dy)) openGap(p.x, p.y, dx, dy);
-        return put(toId, p.x + dx, p.y + dy);
+    // Where id would like to be: one candidate per passage to a placed room,
+    // scored against all of them.
+    const placeRoom = (id) => {
+      const placed = links.get(id).filter((l) => pos.has(l.o));
+      const scoreAt = (c) => placed.reduce((s, l) => s + cost(c, pos.get(l.o), l, occupied), 0);
+      let best = null;
+      for (const l of placed) {
+        if (!l.off) continue;
+        const q = pos.get(l.o);
+        const c = { x: q.x - l.off[0], y: q.y - l.off[1], z: q.z - l.off[2] };
+        const s = scoreAt(c) + (free(c.x, c.y, c.z) ? 0 : 0.6);
+        if (!best || s < best.s - 1e-9) best = { s, c, l, q };
       }
-      // up, down, in, out or an unknown passage: any nearby free cell.
-      const [x, y] = nearest(p.x, p.y, NONPLANAR_TRY[dir] || RING);
-      put(toId, x, y);
+      if (best) {
+        const { c, l, q } = best;
+        if (free(c.x, c.y, c.z)) return put(id, c.x, c.y, c.z);
+        if (l.kind === "compass") {
+          openGap(q.x, q.y, -l.off[0], -l.off[1]);
+          return put(id, q.x - l.off[0], q.y - l.off[1], q.z);
+        }
+        const [x, y] = nearest(q.x, q.y, c.z, RING);   // up or down, with the spot taken
+        return put(id, x, y, c.z);
+      }
+      // Reached only by up/down/in/out (flat map) or with no direction.
+      const l = placed.find((p) => p.d) || placed[0], q = pos.get(l.o);
+      const [x, y] = nearest(q.x, q.y, q.z, NONPLANAR_TRY[l.d && OPPOSITE[l.d]] || RING);
+      put(id, x, y, q.z);
     };
 
-    const ids = data.rooms.map((r) => r.id);
-    if (!ids.length) return pos;
-    put(ids[0], 0, 0);
+    put(ids[0], 0, 0, 0);
     let progress = true;
     while (progress) {
       progress = false;
@@ -87,8 +158,10 @@ const AutoMap = (() => {
       for (const known of [true, false]) {
         for (const [a, d, b] of data.edges) {
           if (!!d !== known || progress && !known) continue;
-          if (pos.has(a) && !pos.has(b)) { placeFrom(a, d, b); progress = true; }
-          else if (pos.has(b) && !pos.has(a)) { placeFrom(b, OPPOSITE[d] || null, a); progress = true; }
+          if (pos.has(a) !== pos.has(b) && links.has(a) && links.has(b)) {
+            placeRoom(pos.has(a) ? b : a);
+            progress = true;
+          }
         }
         if (progress) break;
       }
@@ -98,10 +171,43 @@ const AutoMap = (() => {
         if (loose !== undefined) {
           let maxX = -Infinity;
           for (const p of pos.values()) maxX = Math.max(maxX, p.x);
-          put(loose, maxX + 2, 0);
+          put(loose, maxX + 2, 0, 0);
           progress = true;
         }
       }
+    }
+
+    // 2. Local search: move a room within two steps (or a level), or swap two,
+    // whenever the passages they touch cost less for it.
+    const at = (id, x, y, z) => { pos.get(id).x = x; pos.get(id).y = y; pos.get(id).z = z; taken.set(key(x, y, z), id); };
+    const local = (id, here, other, otherAt) => {
+      let c = 0;
+      for (const l of links.get(id)) c += cost(here, l.o === other ? otherAt : pos.get(l.o), l, occupied);
+      return c;
+    };
+    for (let pass = 0; pass < 40; pass++) {
+      let improved = false;
+      for (const id of ids) {
+        const a = { ...pos.get(id) };
+        const cands = [];
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (dx || dy) cands.push({ x: a.x + dx, y: a.y + dy, z: a.z });
+        if (levels) cands.push({ x: a.x, y: a.y, z: a.z - 1 }, { x: a.x, y: a.y, z: a.z + 1 });
+        let best = null, bestDelta = -0.3;  // only moves that clearly help: the map shouldn't fidget
+        for (const c of cands) {
+          const other = taken.get(key(c.x, c.y, c.z));
+          const delta = other === undefined ? local(id, c) - local(id, a)
+            : local(id, c, other, a) + local(other, a, id, c) - local(id, a) - local(other, c);
+          if (delta < bestDelta) { bestDelta = delta; best = { c, other }; }
+        }
+        if (best) {
+          const { c, other } = best;
+          taken.delete(key(a.x, a.y, a.z));
+          if (other !== undefined) at(other, a.x, a.y, a.z);
+          at(id, c.x, c.y, c.z);
+          improved = true;
+        }
+      }
+      if (!improved) break;
     }
     return pos;
   }
